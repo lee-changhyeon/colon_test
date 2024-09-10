@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "dayjs": "^1.11.13",
+    "dcmjs": "^0.34.1",
+    "dcmjs-dimse": "^0.1.28",
+    "dicom-dimse-native": "^2.4.6",
+    "dotenv": "^16.4.5",
+    "iconv-lite": "^0.6.3"
+  }
+}
