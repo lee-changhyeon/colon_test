@@ -50,7 +50,7 @@ const dataToTag = (data) => {
 
     } else if (data.QueryRetrieveLevel === 'SERIES') {
         newTag.QueryRetrieveLevel.value = 'SERIES';
-        newTag.SeriesInstanceUID.value = `${data.StudyInstanceUID}.1`;
+        newTag.SeriesInstanceUID.value = data.SeriesInstanceUID;
         const cmoveSeriesTag = [
             newTag.QueryRetrieveLevel,
             newTag.SeriesInstanceUID
@@ -62,6 +62,7 @@ const dataToTag = (data) => {
 
 const cmove = async (source, target, destination, data, inputPath, verbose) => {
     const tag = dataToTag(data);
+    // fs.mkdirSync(inputPath,{recursive:true});
     const cmoveResult = await cmoveProtocol(source, target, destination, tag, inputPath, verbose);
     return cmoveResult;
 }

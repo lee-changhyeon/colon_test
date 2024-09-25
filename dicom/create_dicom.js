@@ -205,6 +205,10 @@ const createDicom = (tag, savePath, imageName) => {
     if (tag.PixelData) {
         dicomData.dict["7FE00010"] = { vr: "OW", Value: tag.PixelData };
     }
+    console.log(tag.ContentSequence)
+    // if (tag.ContentSequence){
+    //     dicomData.dict["0040A730"] = {vr: "SQ", Value: }
+    // }
 
     // prevenotics private tag
     if (tag.Prevenotics) {
@@ -223,7 +227,7 @@ const createDicom = (tag, savePath, imageName) => {
     const buffer = Buffer.from(dicomData.write());
 
     fs.mkdirSync(savePath, { recursive: true });
-    fs.writeFileSync(`${savePath}/${imageName}`, buffer);
+    fs.writeFileSync(`${savePath}/${imageName}.dcm`, buffer);
 };
 
 module.exports = createDicom;

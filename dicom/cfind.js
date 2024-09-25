@@ -55,48 +55,108 @@ const dataToTag = (data) => {
         return cfindPatientTag;
     } else if (data.QueryRetrieveLevel === 'STUDY') {
         newTag.QueryRetrieveLevel.value = 'STUDY';
-        newTag.ModalitiesInStudy.value = 'ES';
+        // newTag.ModalitiesInStudy.value = 'ES';
+        // newTag.Modality.value = 'ES';
+        if(data.Modality){
+            newTag.Modality.value = data.Modality;
+            newTag.ModalitiesInStudy.value = data.Modality;
+        }
+        if(data.StudyInstanceUID){
+            newTag.StudyInstanceUID.value = data.StudyInstanceUID;
+        }
 
         // study level에서 필요한 tag만 살림
         const cfindStudyTag = [
             newTag.SpecificCharacterSet,
             newTag.StudyDate,
-            // newTag.AcquisitionDate,
-            // newTag.ContentDate,
             newTag.StudyTime,
-            // newTag.AcquisitionTime,
-            // newTag.ContentTime,
             newTag.AccessionNumber,
             newTag.QueryRetrieveLevel,
-            // newTag.QueryRetrieveView,
             newTag.Modality,
             newTag.ModalitiesInStudy,
-            // newTag.InstitutionName,
-            // newTag.SOPClassesinStudy,
-            // newTag.ReferringPhysicianName,
             newTag.StudyDescription,
-            // newTag.OperatorsName,
-            // newTag.PhysiciansofRecord,
-            // newTag.NameofPhysiciansReadingStudy,
-            // newTag.AdmittingDiagnosesDescription,
             newTag.PatientName,
             newTag.PatientID,
             newTag.PatientBirthDate,
             newTag.PatientSex,
+            newTag.StudyInstanceUID,
+            newTag.StudyID,
+
+            // newTag.AcquisitionDate,
+            // newTag.ContentDate,
+            // newTag.AcquisitionTime,
+            // newTag.ContentTime,
+            // newTag.QueryRetrieveView,
+            // newTag.InstitutionName,
+            // newTag.SOPClassesinStudy,
+            // newTag.ReferringPhysicianName,
+            // newTag.OperatorsName,
+            // newTag.PhysiciansofRecord,
+            // newTag.NameofPhysiciansReadingStudy,
+            // newTag.AdmittingDiagnosesDescription,
             // newTag.patientAge,
             // newTag.patientSize,
             // newTag.patientWeight,
             // newTag.Occupation,
             // newTag.AdditionalPatientHistory,
             // newTag.PatientComments,
-            newTag.StudyInstanceUID,
-            newTag.StudyID,
             // newTag.OtherStudyNumbers,
             // newTag.NumberofStudyRelatedSeries,
             // newTag.NumberofStudyRelatedInstances,
         ];
 
         return cfindStudyTag;
+    } else if (data.QueryRetrieveLevel === 'SERIES'){
+        newTag.QueryRetrieveLevel.value = 'SERIES';
+        if(data.Modality){
+            newTag.Modality.value = data.Modality;
+            newTag.ModalitiesInStudy.value = data.Modality;
+        }
+        if(data.StudyInstanceUID){
+            newTag.StudyInstanceUID.value = data.StudyInstanceUID;
+        }
+
+        // study level에서 필요한 tag만 살림
+        const cfindSeriesTag = [
+            newTag.SpecificCharacterSet,
+            newTag.StudyDate,
+            newTag.StudyTime,
+            newTag.AccessionNumber,
+            newTag.QueryRetrieveLevel,
+            newTag.Modality,
+            newTag.ModalitiesInStudy,
+            newTag.StudyDescription,
+            newTag.PatientName,
+            newTag.PatientID,
+            newTag.PatientBirthDate,
+            newTag.PatientSex,
+            newTag.StudyInstanceUID,
+            newTag.SeriesInstanceUID,
+            newTag.StudyID,
+
+            // newTag.AcquisitionDate,
+            // newTag.ContentDate,
+            // newTag.AcquisitionTime,
+            // newTag.ContentTime,
+            // newTag.QueryRetrieveView,
+            // newTag.InstitutionName,
+            // newTag.SOPClassesinStudy,
+            // newTag.ReferringPhysicianName,
+            // newTag.OperatorsName,
+            // newTag.PhysiciansofRecord,
+            // newTag.NameofPhysiciansReadingStudy,
+            // newTag.AdmittingDiagnosesDescription,
+            // newTag.patientAge,
+            // newTag.patientSize,
+            // newTag.patientWeight,
+            // newTag.Occupation,
+            // newTag.AdditionalPatientHistory,
+            // newTag.PatientComments,
+            // newTag.OtherStudyNumbers,
+            // newTag.NumberofStudyRelatedSeries,
+            // newTag.NumberofStudyRelatedInstances,
+        ];
+        return cfindSeriesTag;
     }
 };
 
@@ -149,6 +209,9 @@ const tagToData = (tagList) => {
         // }
         if (tag[dicomTag.key.StudyInstanceUID]) {
             decodedTag.StudyInstanceUID = tag[dicomTag.key.StudyInstanceUID].Value[0];
+        }
+        if (tag[dicomTag.key.SeriesInstanceUID]) {
+            decodedTag.SeriesInstanceUID = tag[dicomTag.key.SeriesInstanceUID].Value[0];
         }
         if (tag[dicomTag.key.StudyID]) {
             decodedTag.StudyID = tag[dicomTag.key.StudyID].Value[0];

@@ -2,8 +2,8 @@ const iconv = require('iconv-lite');
 const dotenv = require('dotenv');
 dotenv.config();
 
-const { createDicom } = require('./create_dicom');
-const { inputPath } = require('./config');
+const createDicom = require('./create_dicom');
+const { inputPath } = require('../config');
 
 const dcmjsDimse = require('dcmjs-dimse');
 const { Dataset, Scp } = dcmjsDimse;
