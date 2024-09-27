@@ -279,7 +279,8 @@ class DcmjsDimseScp extends Scp {
         }
 
 
-        createDicom(tag, inputPath + '/' + tag.StudyInstanceUID, imageName);
+        // createDicom(tag, inputPath + '/' + tag.StudyInstanceUID, imageName);
+        createDicom(tag, inputPath, imageName);
 
 
         const response = CStoreResponse.fromRequest(request);

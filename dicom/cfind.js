@@ -42,6 +42,14 @@ const dataToTag = (data) => {
         if (data.startDate && data.endDate) { newTag.StudyDate.value = newTag.StudyDate.value + '-' + data.endDate; }
     }
 
+    if (data.Modality) {
+        newTag.Modality.value = data.Modality;
+    }
+
+    if (data.ModalitiesInStudy) {
+        newTag.ModalitiesInStudy.value = data.ModalitiesInStudy;
+    }
+
     if (data.QueryRetrieveLevel === 'PATIENT') {
         newTag.QueryRetrieveLevel.value = 'PATIENT';
 
@@ -57,11 +65,8 @@ const dataToTag = (data) => {
         newTag.QueryRetrieveLevel.value = 'STUDY';
         // newTag.ModalitiesInStudy.value = 'ES';
         // newTag.Modality.value = 'ES';
-        if(data.Modality){
-            newTag.Modality.value = data.Modality;
-            newTag.ModalitiesInStudy.value = data.Modality;
-        }
-        if(data.StudyInstanceUID){
+
+        if (data.StudyInstanceUID) {
             newTag.StudyInstanceUID.value = data.StudyInstanceUID;
         }
 
@@ -106,13 +111,10 @@ const dataToTag = (data) => {
         ];
 
         return cfindStudyTag;
-    } else if (data.QueryRetrieveLevel === 'SERIES'){
+    } else if (data.QueryRetrieveLevel === 'SERIES') {
         newTag.QueryRetrieveLevel.value = 'SERIES';
-        if(data.Modality){
-            newTag.Modality.value = data.Modality;
-            newTag.ModalitiesInStudy.value = data.Modality;
-        }
-        if(data.StudyInstanceUID){
+
+        if (data.StudyInstanceUID) {
             newTag.StudyInstanceUID.value = data.StudyInstanceUID;
         }
 
