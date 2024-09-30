@@ -3,13 +3,13 @@ const fs = require('fs');
 const path = require('path');
 const dayjs = require('dayjs');
 const dotenv = require('dotenv');
+const { spawn } = require('child_process');
 dotenv.config();
 
 const inputPath = process.env.INPUT_PATH;
 const savePath = process.env.SAVE_PATH;
 const startDate = process.env.START_DATE;
 const endDate = process.env.END_DATE;
-
 
 // dicom
 const { myAddress, cfindAddress, cmoveAddress, cfindFilter } = require('./config');
@@ -32,7 +32,7 @@ const start = async () => {
         // mysql db connection
         await new Promise((resolve, reject) => {
             db.sequelize
-                .sync({ alter: false })
+                .sync({ alter: true })
                 .then(async () => {
                     console.log('mysql connect success');
                     resolve(true);
@@ -49,8 +49,30 @@ const start = async () => {
             console.log(`${currentDate} working`);
             const cfindCount = await cfindProcess(currentDate);
             console.log(`${currentDate}의 cfind 내시경 건수 : ${cfindCount}`);
-            await cmoveProcess();
 
+            let waitingList = await Waiting.findAll({});
+            while (waitingList.length) {
+                const waiting = waitingList[0]
+                await cmoveProcess(waiting);
+                const year = waiting.study_date.split('-')[0];
+                const month = waiting.study_date.split('-')[1];
+                const date = waiting.study_date.split('-')[2];
+                const datePath = path.join(savePath, year, month, date, `${waiting.patient_id}`);
+                if (!fs.existsSync(datePath)) { fs.mkdirSync(datePath, { recursive: true }) }
+                const pythonResult = await convertProcess(datePath, waiting.patient_id, dayjs(waiting.study_date).format('YYMMDD'));
+                if (pythonResult.includes('Success')) {
+                    await Study.update({ is_convert: true }, { where: { id: waiting.study_id } });
+                } else {
+                    const files = fs.readdirSync(inputPath);
+                    for (const file of files) {
+                        const sourcePath = path.join(inputPath, file);
+                        const destinationPath = path.join(datePath, file);
+                        fs.copyFileSync(sourcePath, destinationPath);
+                        fs.unlinkSync(sourcePath);
+                    }
+                }
+                waitingList = await Waiting.findAll({});
+            }
             const nextDate = dayjs(currentDate).subtract(1, 'day').format('YYYYMMDD');
             currentDate = await updateCurrentDate(nextDate);
         }
@@ -77,40 +99,24 @@ const findOneCurrentDate = async () => {
     return dayjs(currentData.current_date).format('YYYYMMDD');
 };
 
-const cmoveProcess = async () => {
-    const waitingList = await Waiting.findAll({});
-    for (const waiting of waitingList) {
-        const data = { QueryRetrieveLevel: 'STUDY', StudyInstanceUID: waiting.study_instance_uid };
-        const cmoveResult = await cmove(myAddress, cmoveAddress, myAddress, data, inputPath, verbose);
-
+const cmoveProcess = async (waiting) => {
+    const data = { QueryRetrieveLevel: 'STUDY', StudyInstanceUID: waiting.study_instance_uid };
+    const cmoveResult = await cmove(myAddress, cmoveAddress, myAddress, data, inputPath, verbose);
+    if (cmoveResult.includes('Success')) {
         await Study.update({ is_cmove: true }, { where: { id: waiting.study_id } });
         await Waiting.destroy({ where: { id: waiting.id } });
-
-
-        const year = waiting.study_date.split('-')[0];
-        const month = waiting.study_date.split('-')[1];
-        const date = waiting.study_date.split('-')[2];
-        const datePath = path.join(savePath, year, month, date, `${waiting.study_id}`);
-
-        const files = fs.readdirSync(inputPath);
-        if (!fs.existsSync(datePath)) { fs.mkdirSync(datePath, { recursive: true }) }
-        for (const file of files) {
-            const sourcePath = path.join(inputPath, file);
-            const destinationPath = path.join(datePath, file);
-            fs.renameSync(sourcePath, destinationPath);
-        }
+    } else {
+        // error Data에 삽입
     }
     return;
 };
 
-
 const cfindProcess = async (studyDate) => {
-    const [currentData, _] = await Current.findOrCreate({
+    await Current.findOrCreate({
         where: { id: 1 },
         defaults: { current_date: startDate },
         raw: false
     });
-
 
     const data = { QueryRetrieveLevel: 'STUDY', startDate: studyDate, ModalitiesInStudy: 'ES' }; //StudyInstanceUID, Modality: 'ES'
     const cfindResult = await cfind(myAddress, cfindAddress, data, cfindFilter, verbose);
@@ -134,6 +140,7 @@ const cfindProcess = async (studyDate) => {
                     where: { study_id: studyData.id },
                     defaults: {
                         study_instance_uid: studyData.study_instance_uid,
+                        patient_id: studyData.patient_id,
                         study_date: studyData.study_date
                     }
                 });
@@ -143,6 +150,34 @@ const cfindProcess = async (studyDate) => {
 
     return count;
 }
+
+const convertProcess = (savePath, patientId, studyDate) => {
+    return new Promise((resolve, reject) => {
+        const process = spawn('python', [path.join(__dirname, 'dicom_to_jpg.py'), savePath, patientId, studyDate]);
+
+        let output = '';
+        let errorOutput = '';
+
+        // 표준 출력 처리
+        process.stdout.on('data', (data) => {
+            output += data.toString();
+        });
+
+        // 표준 오류 처리
+        process.stderr.on('data', (data) => {
+            errorOutput += data.toString();
+        });
+
+        // 프로세스 종료 시 처리
+        process.on('close', (code) => {
+            if (code !== 0) {
+                resolve(`Error: ${errorOutput}`);
+            } else {
+                resolve(output);
+            }
+        });
+    });
+};
 
 start();
 

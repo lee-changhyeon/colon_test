@@ -51,6 +51,12 @@ class Study extends Sequelize.Model {
                     defaultValue: false,
                     comment: 'cmove 유무',
                 },
+                is_convert: {
+                    type: Sequelize.BOOLEAN,
+                    allowNull: true,
+                    defaultValue: false,
+                    comment: 'convert 유무',
+                },
                 is_error: {
                     type: Sequelize.BOOLEAN,
                     allowNull: true,

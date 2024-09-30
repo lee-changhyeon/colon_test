@@ -20,6 +20,10 @@ class Waiting extends Sequelize.Model {
                     allowNull: false,
                     comment: '인퍼런스 진행될 검진의 인스턴스 UID',
                 },
+                patient_id: {
+                    type: Sequelize.STRING,
+                    allowNull: false,
+                },
                 study_date: {
                     type: Sequelize.DATEONLY,
                     allowNull: false

@@ -6,7 +6,9 @@
     "dicom-dimse-native": "^2.4.6",
     "dotenv": "^16.4.5",
     "iconv-lite": "^0.6.3",
+    "jpeg-js": "^0.4.4",
     "mysql2": "^3.11.3",
-    "sequelize": "^6.37.3"
+    "sequelize": "^6.37.3",
+    "sharp": "^0.33.5"
   }
 }
