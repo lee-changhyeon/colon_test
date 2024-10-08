@@ -355,3 +355,4 @@ WARN  [30-09-2024 10:22:08:030]: failed to convert ISO 2022 IR 149 to ISO_IR 192
 WARN  [30-09-2024 10:22:08:030]: failed to convert ISO 2022 IR 149 to ISO_IR 192
 WARN  [30-09-2024 10:22:08:030]: failed to convert ISO 2022 IR 149 to ISO_IR 192
 WARN  [30-09-2024 10:22:08:030]: failed to convert ISO 2022 IR 149 to ISO_IR 192
+WARN  [30-09-2024 18:42:06:118]: DIMSE status is: Warning: SubOperationsCompleteOneOrMoreFailures

@@ -62,6 +62,7 @@ const start = async () => {
                 const pythonResult = await convertProcess(datePath, waiting.patient_id, dayjs(waiting.study_date).format('YYMMDD'));
                 if (pythonResult.includes('Success')) {
                     await Study.update({ is_convert: true }, { where: { id: waiting.study_id } });
+                    await Waiting.destroy({ where: { id: waiting.id } });
                 } else {
                     const files = fs.readdirSync(inputPath);
                     for (const file of files) {
@@ -70,6 +71,7 @@ const start = async () => {
                         fs.copyFileSync(sourcePath, destinationPath);
                         fs.unlinkSync(sourcePath);
                     }
+                    await Waiting.destroy({ where: { id: waiting.id } });
                 }
                 waitingList = await Waiting.findAll({});
             }
@@ -104,9 +106,9 @@ const cmoveProcess = async (waiting) => {
     const cmoveResult = await cmove(myAddress, cmoveAddress, myAddress, data, inputPath, verbose);
     if (cmoveResult.includes('Success')) {
         await Study.update({ is_cmove: true }, { where: { id: waiting.study_id } });
-        await Waiting.destroy({ where: { id: waiting.id } });
     } else {
         // error Data에 삽입
+        await Waiting.destroy({ where: { id: waiting.id } });
     }
     return;
 };
@@ -123,6 +125,7 @@ const cfindProcess = async (studyDate) => {
     const count = cfindResult ? cfindResult.length : 0;
     if (cfindResult) {
         for (const study of cfindResult) {
+            if(!study.PatientID){continue;}
             const [studyData, _] = await Study.findOrCreate({
                 where: { study_instance_uid: study.StudyInstanceUID },
                 defaults: {
@@ -153,7 +156,7 @@ const cfindProcess = async (studyDate) => {
 
 const convertProcess = (savePath, patientId, studyDate) => {
     return new Promise((resolve, reject) => {
-        const process = spawn('python', [path.join(__dirname, 'dicom_to_jpg.py'), savePath, patientId, studyDate]);
+        const process = spawn('python3', [path.join(__dirname, 'dicom_to_jpg.py'), savePath, patientId, studyDate]);
 
         let output = '';
         let errorOutput = '';
