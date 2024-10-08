@@ -97,6 +97,7 @@ const start = async (startDate, endDate) => {
                     const pythonResult = await convertProcess(dcmPath, datePath, patientId, studyDate, birthdate, age, sex);
                     if (pythonResult.includes('Success')) {
                         fs.readdirSync(dcmPath).length === 0 && fs.rmdirSync(dcmPath);
+                        await Study.update({ is_convert: true }, { where: { id: study.id } });
                     }
                 }
 
