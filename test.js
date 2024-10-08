@@ -1,77 +1,110 @@
 const fs = require('fs');
 const path = require('path');
-const dcmjs = require('dcmjs');
-const sharp = require('sharp');
-const jpeg = require('jpeg-js');
+const dayjs = require('dayjs');
 
-const inputPath = '/workspace/colon_test/sample'
-const outputPath = '/workspace/colon_test/sample_result_jpeg';
+const dotenv = require('dotenv');
+dotenv.config();
 
-const test = (patientId, studyDate, imageExtension) => {
-    const dcmFileList = fs.readdirSync(inputPath);
+const db = require('./db');
+const { Study, Current, Waiting } = require('./db');
+const { error } = require('console');
 
-    const dcmList = dcmFileList.map((dcmName) => {
-        const dcmBuffer = fs.readFileSync(path.join(inputPath, dcmName)).buffer;
-        const dcmDataSet = dcmjs.data.DicomMessage.readFile(dcmBuffer);
-        const transferSyntax = dcmDataSet.meta['00020010'].Value[0];
-        const contentTime = Number(dcmDataSet.dict['00080033'].Value[0]);
-        const raws = dcmDataSet.dict["00280010"].Value[0];
-        const columns = dcmDataSet.dict["00280011"].Value[0];
-        const samplesPerPixel = dcmDataSet.dict["00280002"].Value[0];
-        let pixelData = dcmDataSet.dict["7FE00010"].Value[0];
-
-        if (transferSyntax === '1.2.840.10008.1.2.4.50') { // JPEG Baseline (Process 1)
-            const jpegImageData = Buffer.from(pixelData);
-            const decodedImage = jpeg.decode(jpegImageData, true);
-            pixelData = Buffer.from(decodedImage.data); // JPEG 해제된 데이터
-        } else if (transferSyntax === '1.2.840.10008.1.2.4.70') { // JPEG Lossless, Nonhierarchical, First - Order Prediction (Processes 14[Selection Value 1])
-            // const jpegImageData = Buffer.from(pixelData);
-            // const decodedImage = jpeg.decode(jpegImageData, true);
-            // pixelData = Buffer.from(decodedImage.data); // JPEG 해제된 데이터
-        }
-        console.log(pixelData)
-        console.log(raws * columns * samplesPerPixel)
-
-        return { contentTime, raws, columns, samplesPerPixel, pixelData }
-    });
-
-    dcmList.sort((a, b) => a.contentTime - b.contentTime);
+const savePath = process.env.SAVE_PATH;
 
 
-    if (imageExtension === 'png') {
-        dcmList.forEach(({ raws, columns, samplesPerPixel, pixelData }, index) => {
-            const pngFileName = `${outputPath}/${patientId}_${studyDate}_${String(index + 1).padStart(4, '0')}.png`; // 파일 이름 생성
 
-            sharp(Buffer.from(pixelData), {
-                raw: {
-                    width: columns,
-                    height: raws,
-                    channels: samplesPerPixel + 1,
-                }
-            }).toFile(pngFileName, (err, info) => {
-                if (err) {
-                    console.error('Error saving PNG', err);
-                }
-            });
-        });
-    } else if (imageExtension === 'jpg') {
-        dcmList.forEach(({ raws, columns, samplesPerPixel, pixelData }, index) => {
-            const jpegFileName = `${outputPath}/${patientId}_${studyDate}_${String(index + 1).padStart(4, '0')}.jpg`; // 파일 이름 생성
-
-            sharp(pixelData, {
-                raw: {
-                    width: columns,
-                    height: raws,
-                    channels: samplesPerPixel + 1 // 그레이스케일 또는 RGB
-                }
-            }).jpeg({ quality: 100 }).toFile(jpegFileName, (err, info) => {
-                if (err) {
-                    console.error('Error saving JPEG', err);
-                }
-            });
-        });
-    }
-
+// ... existing code ...
+const calculateAge = (birthdate, studyDate) => {
+    const birth = dayjs(birthdate, 'YYYY-MM-DD');
+    const study = dayjs(studyDate, 'YYYY-MM-DD');
+    return study.diff(birth, 'year') - (study.isBefore(birth.add(study.diff(birth, 'year'), 'year')) ? 1 : 0);
 };
 
-test(123, 240930, 'jpg');
+// dayjs를 사용하여 날짜를 반복하는 함수 추가
+const getDatesBetween = (startDate, endDate) => {
+    const dates = [];
+    let currentDate = dayjs(startDate, 'YYYYMMDD'); // 형식 지정
+    const end = dayjs(endDate, 'YYYYMMDD'); // 형식 지정
+
+    // 현재 날짜가 끝 날짜보다 크거나 같을 때까지 반복
+    while (currentDate.isAfter(end) || currentDate.isSame(end)) {
+        dates.push(currentDate.format('YYYYMMDD')); // YYYY-MM-DD 형식으로 변환
+        currentDate = currentDate.subtract(1, 'day'); // 하루씩 감소
+    }
+    return dates;
+};
+
+
+const start = async (startDate, endDate) => {
+    try {
+        await new Promise((resolve, reject) => {
+            db.sequelize
+                .sync({ alter: false })
+                .then(async () => {
+                    console.log('mysql connect success');
+                    resolve(true);
+                })
+                .catch((err) => {
+                    console.log(err);
+                    reject(false);
+                });
+        });
+
+        const dates = getDatesBetween(startDate, endDate);
+        for (const date of dates) {
+            const studyData = await Study.findAll({ where: { study_date: date } });
+            for (const study of studyData) {
+                const year = study.study_date.split('-')[0];
+                const month = study.study_date.split('-')[1];
+                const date = study.study_date.split('-')[2];
+                const datePath = path.join(savePath, year, month, date, `${study.patient_id}`);
+                if (!fs.existsSync(datePath)) {
+                    console.log('폴더 자체가 생성되지 않았음');
+                } else {
+                    const patientId = study.patient_id;
+                    const studyDate = dayjs(study.study_date).format('YYYYMMDD');
+                    const birthdate = dayjs(study.patient_birthdate).format('YYYYMMDD');
+                    const age = String(calculateAge(study.patient_birthdate, study.studyDate));
+                    const sex = study.patient_sex;
+
+                    const files = fs.readdirSync(datePath);
+                    for (const file of files) {
+                        if (file.endsWith('.dcm')) {
+
+                        } else {
+                            const filePatientId = file.split('.jpg')[0].split('_')[0];
+                            const fileStudyDate = file.split('.jpg')[0].split('_')[1];
+                            const fileNumber = file.split('.jpg')[0].split('_')[2];
+
+                            if (filePatientId !== patientId || !studyDate.includes(fileStudyDate)) {
+                                console.log('파일명이 불일치합니다.');
+                            } else {
+                                const oldPath = path.join(datePath, file);
+                                const newFileName = `${patientId}_${studyDate}_${birthdate}_${age}_${sex}_${fileNumber}.jpg`; // 새로운 파일 이름 생성
+                                const newPath = path.join(datePath, newFileName);
+                                fs.renameSync(oldPath, newPath); // 파일 이름 변경
+                            }
+                        }
+
+
+                    }
+                }
+
+            }
+        }
+
+
+
+
+
+
+        // const studyData = await Study.findAll({});
+
+
+
+    } catch (error) {
+        console.log('에러발생', error.message);
+    }
+}
+
+start('20240927', '20240701');
