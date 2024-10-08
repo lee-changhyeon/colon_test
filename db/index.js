@@ -51,6 +51,7 @@ const Sequelize = require('sequelize');
 const Study = require('./study');
 const Current = require('./current');
 const Waiting = require('./waiting');
+const Error = require('./error');
 
 const db = {};
 const env = process.env.NODE_ENV || 'development';
@@ -61,9 +62,11 @@ db.sequelize = sequelize;
 db.Study = Study;
 db.Current = Current;
 db.Waiting = Waiting;
+db.Error = Error;
 
 Study.init(sequelize);
 Current.init(sequelize);
 Waiting.init(sequelize);
+Error.init(sequelize);
 
 module.exports = db;
