@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const dayjs = require('dayjs');
+const { spawn } = require('child_process');
 
 const dotenv = require('dotenv');
 dotenv.config();
@@ -12,10 +13,10 @@ const { error } = require('console');
 const savePath = process.env.SAVE_PATH;
 
 
-const convertProcess = (savePath, patientId, studyDate, birthdate, age, sex) => {
+const convertProcess = (inputPath, savePath, patientId, studyDate, birthdate, age, sex) => {
+    // console.log(inputPath, savePath, patientId, studyDate, birthdate, age, sex)
     return new Promise((resolve, reject) => {
-        const process = spawn('python', [path.join(__dirname, 'dicom_to_jpg.py'), savePath, patientId, studyDate, birthdate, age, sex]);
-
+        const process = spawn('python3', [path.join(__dirname, 'dicom_to_jpg.py'), inputPath, savePath, patientId, studyDate, birthdate, age, sex]);
         let output = '';
         let errorOutput = '';
 
@@ -89,7 +90,7 @@ const start = async (startDate, endDate) => {
                 const age = String(calculateAge(study.patient_birthdate, study.study_date));
                 const sex = study.patient_sex;
                 const datePath = path.join(savePath, year, month, date, `${study.patient_id}`);
-
+                console.log(datePath)
                 if (!fs.existsSync(datePath)) {
                     const dcmPath = path.join(savePath, year, month, date, `${String(study.id)}`);
                     if (!fs.existsSync(dcmPath)) { console.log('폴더 자체가 생성되지 않았음'); }
@@ -99,22 +100,26 @@ const start = async (startDate, endDate) => {
                         fs.readdirSync(dcmPath).length === 0 && fs.rmdirSync(dcmPath);
                         await Study.update({ is_convert: true }, { where: { id: study.id } });
                     }
-                }
+                } else {
+                    const files = fs.readdirSync(datePath);
+                    for (const file of files) {
+                        const filePatientId = file.split('.')[0].split('_')[0];
+                        const fileStudyDate = file.split('.')[0].split('_')[1];
+                        const fileNumber = file.split('.')[0].split('_')[2];
 
+                        if(fileNumber === birthdate){
+                            console.log('pass')
+                            break;
+                        }
 
-                const files = fs.readdirSync(datePath);
-                for (const file of files) {
-                    const filePatientId = file.split('.')[0].split('_')[0];
-                    const fileStudyDate = file.split('.')[0].split('_')[1];
-                    const fileNumber = file.split('.')[0].split('_')[2];
-
-                    if (filePatientId !== patientId || !studyDate.includes(fileStudyDate)) {
-                        console.log('파일명이 불일치합니다.');
-                    } else {
-                        const oldPath = path.join(datePath, file);
-                        const newFileName = `${patientId}_${studyDate}_${birthdate}_${age}_${sex}_${fileNumber}.jpg`; // 새로운 파일 이름 생성
-                        const newPath = path.join(datePath, newFileName);
-                        fs.renameSync(oldPath, newPath); // 파일 이름 변경
+                        if (filePatientId !== patientId || !studyDate.includes(fileStudyDate)) {
+                            console.log('파일명이 불일치합니다.');
+                        } else {
+                            const oldPath = path.join(datePath, file);
+                            const newFileName = `${patientId}_${studyDate}_${birthdate}_${age}_${sex}_${fileNumber}.jpg`; // 새로운 파일 이름 생성
+                            const newPath = path.join(datePath, newFileName);
+                            fs.renameSync(oldPath, newPath); // 파일 이름 변경
+                        }
                     }
                 }
 
@@ -135,4 +140,4 @@ const start = async (startDate, endDate) => {
     }
 }
 
-start('20240927', '20240701');
+start('20240305', '20240305');
