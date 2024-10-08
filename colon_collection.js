@@ -59,7 +59,15 @@ const start = async () => {
                 const date = waiting.study_date.split('-')[2];
                 const datePath = path.join(savePath, year, month, date, `${waiting.patient_id}`);
                 if (!fs.existsSync(datePath)) { fs.mkdirSync(datePath, { recursive: true }) }
-                const pythonResult = await convertProcess(datePath, waiting.patient_id, dayjs(waiting.study_date).format('YYMMDD'));
+
+                const patientId = waiting.patient_id;
+                const studyData = await Study.findOne({ where: { id: waiting.study_id } });
+                const studyDate = dayjs(waiting.study_date).format('YYYYMMDD');
+                const birthdate = dayjs(studyData.patient_birthdate).format('YYYYMMDD');
+                const age = calculateAge(studyData.patient_birthdate, waiting.study_date);
+                const sex = studyData.patient_sex;
+
+                const pythonResult = await convertProcess(inputPath, datePath, patientId, studyDate, birthdate, age, sex);
                 if (pythonResult.includes('Success')) {
                     await Study.update({ is_convert: true }, { where: { id: waiting.study_id } });
                 } else {
@@ -79,6 +87,12 @@ const start = async () => {
     } catch (error) {
         console.error(error);
     }
+};
+
+const calculateAge = (birthdate, studyDate) => {
+    const birth = dayjs(birthdate, 'YYYY-MM-DD');
+    const study = dayjs(studyDate, 'YYYY-MM-DD');
+    return study.diff(birth, 'year') - (study.isBefore(birth.add(study.diff(birth, 'year'), 'year')) ? 1 : 0);
 };
 
 const updateCurrentDate = async (currentDate) => {
@@ -151,9 +165,9 @@ const cfindProcess = async (studyDate) => {
     return count;
 }
 
-const convertProcess = (savePath, patientId, studyDate) => {
+const convertProcess = (inputPath, savePath, patientId, studyDate, birthdate, age, sex) => {
     return new Promise((resolve, reject) => {
-        const process = spawn('python', [path.join(__dirname, 'dicom_to_jpg.py'), savePath, patientId, studyDate]);
+        const process = spawn('python', [path.join(__dirname, 'dicom_to_jpg.py'), inputPath, savePath, patientId, studyDate, birthdate, age, sex]);
 
         let output = '';
         let errorOutput = '';

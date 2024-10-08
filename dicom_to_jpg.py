@@ -7,10 +7,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-input_path = os.getenv('INPUT_PATH', '/workspace/colon_test/sample')  # 환경 변수 사용
-output_path = os.getenv('OUTPUT_PATH', '/workspace/colon_test/sample_result_jpeg')  # 환경 변수 사용
+# input_path = os.getenv('INPUT_PATH', '/workspace/colon_test/sample')  # 환경 변수 사용
 
-def convert_dicom_to_jpeg(save_path, patient_id, study_date):
+def convert_dicom_to_jpeg(input_path, save_path, patient_id, study_date, birth_date, age, sex):
     try:
         dcm_file_list = [f for f in os.listdir(input_path) if f.endswith('.dcm')]
         dataset_list=[]
@@ -30,11 +29,12 @@ def convert_dicom_to_jpeg(save_path, patient_id, study_date):
             image_array = np.frombuffer(dataset.pixel_array, dtype=np.uint8).reshape(raws, columns, samples_per_pixel)
 
             image = Image.fromarray(image_array)
-            image.save(f'{save_path}/{patient_id}_{study_date}_{str(index + 1).zfill(4)}.jpg', 'JPEG', quality=100)
+            image.save(f'{save_path}/{patient_id}_{study_date}_{birth_date}_{age}_{sex}_{str(index + 1).zfill(4)}.jpg', 'JPEG', quality=100)
 
          # input_path의 모든 파일 삭제
         for f in os.listdir(input_path):
-            os.remove(os.path.join(input_path, f))
+            if f.endswith('.dcm'):
+                os.remove(os.path.join(input_path, f))
         return 'Success'
     except Exception as e:
         return f'Failed, {str(e)}'
@@ -42,9 +42,14 @@ def convert_dicom_to_jpeg(save_path, patient_id, study_date):
 
 if __name__ == "__main__":
     # 커맨드라인 인자로 patient_id와 study_date를 받음
-    save_path = sys.argv[1]
-    patient_id = sys.argv[2]
-    study_date = sys.argv[3]
+    input_path = sys.argv[1]
+    save_path = sys.argv[2]
+    patient_id = sys.argv[3]
+    study_date = sys.argv[4]
+    birth_date = sys.argv[5]
+    age = sys.argv[6]
+    sex = sys.argv[7]
+
     
-    result = convert_dicom_to_jpeg(save_path, patient_id, study_date)
+    result = convert_dicom_to_jpeg(input_path, save_path, patient_id, study_date, birth_date, age, sex)
     print(result)  # 결과 출력
