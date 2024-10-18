@@ -10,9 +10,11 @@ current_process=$(pm2 list | grep -E "BACKEND|VENOTICS" | grep online | awk '{pr
 if [[ "$current_process" = *"BACKEND"* || "$current_process" = *"VENOTICS"* ]]; then
   pm2 stop VENOTICS
   pm2 stop BACKEND
-  pm2 start colon_collection
+  cd /home/pvmvp/Desktop/colon_test/colon_test
+  pm2 start --name colon_collection colon_collection.js
 else
-  pm2 start colon_collection
+  cd /home/pvmvp/Desktop/colon_test/colon_test
+  pm2 start --name colon_collection colon_collection.js
 fi
 
 current_datetime=$(date '+%Y-%m-%d %H:%M:%S')
