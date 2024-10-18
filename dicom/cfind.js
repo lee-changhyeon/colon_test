@@ -231,9 +231,9 @@ const tagToData = (tagList) => {
             // if (tag[dicomTag.key.InstitutionName]) {
             //   decodedTag.InstitutionName = tag[dicomTag.key.InstitutionName].Value[0];
             // }
-            // if (tag[dicomTag.key.OperatorsName]) {
-            //   decodedTag.OperatorsName = tag[dicomTag.key.OperatorsName].Value[0]['Alphabetic'];
-            // }
+            if (tag[dicomTag.key.OperatorsName]) {
+                decodedTag.OperatorsName = tag[dicomTag.key.OperatorsName].Value[0]['Alphabetic'];
+            }
         } else if (encodingType === 'euc-kr') {//} else if (decodedTag.SpecificCharacterSet === 'ISO 2022 IR 149') {
             if (tag[dicomTag.key.StudyDescription] && tag[dicomTag.key.StudyDescription].Value.length !== 0) {
                 const encode = Array.from(tag[dicomTag.key.StudyDescription].Value[0], (char) => char.charCodeAt(0));
@@ -247,10 +247,10 @@ const tagToData = (tagList) => {
             //     const encode = Array.from(tag[dicomTag.key.InstitutionName].Value[0], (char) => char.charCodeAt(0));
             //     decodedTag.InstitutionName = iconv.decode(encode, 'euc-kr');
             //   }
-            //   if (tag[dicomTag.key.OperatorsName]) {
-            //     const encode = Array.from(tag[dicomTag.key.OperatorsName].Value[0]['Alphabetic'], (char) => char.charCodeAt(0));
-            //     decodedTag.OperatorsName = iconv.decode(encode, 'euc-kr');
-            //   }
+            if (tag[dicomTag.key.OperatorsName]) {
+                const encode = Array.from(tag[dicomTag.key.OperatorsName].Value[0]['Alphabetic'], (char) => char.charCodeAt(0));
+                decodedTag.OperatorsName = iconv.decode(encode, 'euc-kr');
+            }
         }
         return decodedTag;
     });

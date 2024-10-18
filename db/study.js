@@ -45,6 +45,11 @@ class Study extends Sequelize.Model {
                     allowNull: true,
                     comment: '(0020,000D) UI StudyInstanceUID',
                 },
+                operators_name: {
+                    type: Sequelize.STRING,
+                    allowNull: true,
+                    comment: '(0008,1070) PN OperatorsName',
+                },
                 is_cmove: {
                     type: Sequelize.BOOLEAN,
                     allowNull: true,

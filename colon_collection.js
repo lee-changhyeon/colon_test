@@ -139,7 +139,9 @@ const cfindProcess = async (studyDate) => {
     const count = cfindResult ? cfindResult.length : 0;
     if (cfindResult) {
         for (const study of cfindResult) {
-            if(!study.PatientID){continue;}
+            let doctorName = null;
+            if (!study.PatientID) { continue; }
+            if (study.OperatorsName) { doctorName = study.OperatorsName; }
             const [studyData, _] = await Study.findOrCreate({
                 where: { study_instance_uid: study.StudyInstanceUID },
                 defaults: {
@@ -148,7 +150,8 @@ const cfindProcess = async (studyDate) => {
                     patient_name: study.PatientName,
                     patient_birthdate: study.PatientBirthDate,
                     patient_sex: study.PatientSex,
-                    study_description: study.StudyDescription
+                    study_description: study.StudyDescription,
+                    operators_name: doctorName,
                 }
             });
 
