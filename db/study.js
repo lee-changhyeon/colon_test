@@ -68,6 +68,38 @@ class Study extends Sequelize.Model {
                     defaultValue: false,
                     comment: 'cmove 과정 에러 유무',
                 },
+                interpretation: {
+                    type: Sequelize.TEXT,
+                    allowNull: true,
+                    comment: '판독내용',
+                },
+                gross: {
+                    type: Sequelize.TEXT,
+                    allowNull: true,
+                    comment: 'gross',
+                },
+                micro: {
+                    type: Sequelize.TEXT,
+                    allowNull: true,
+                    comment: 'micro',
+                },
+                diagnosis: {
+                    type: Sequelize.TEXT,
+                    allowNull: true,
+                    comment: 'diagnosis',
+                },
+                note: {
+                    type: Sequelize.TEXT,
+                    allowNull: true,
+                    comment: 'note',
+                },
+                is_result:{
+                    type: Sequelize.BOOLEAN,
+                    allowNull: true,
+                    defaultValue:false,
+                    comment: 'is result excel'
+                }
+                
             },
             {
                 sequelize,

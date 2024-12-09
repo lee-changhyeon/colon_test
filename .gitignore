@@ -7,3 +7,5 @@
 /data/*
 /input/*
 /pm2_list.log
+/excel_file/*
+/dicom.log

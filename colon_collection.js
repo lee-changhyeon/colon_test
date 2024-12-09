@@ -23,7 +23,7 @@ const verbose = process.env.VERBOSE;
 
 // db
 const db = require('./db');
-const { Study, Current, Waiting } = require('./db');
+const { Study, Current, Waiting, Error } = require('./db');
 
 
 const start = async () => {
@@ -72,6 +72,17 @@ const start = async () => {
                     await Study.update({ is_convert: true }, { where: { id: waiting.study_id } });
                     await Waiting.destroy({ where: { id: waiting.id } });
                 } else {
+                    await Study.update({ is_convert: false, is_error: true }, { where: { id: studyData.id } });
+                    const [errorRecord, created] = await Error.findOrCreate({
+                        where: { study_instance_uid: studyData.study_instance_uid }, // study_id로 레코드를 찾거나 새로 생성
+                        defaults: {  // 레코드가 없으면 이 데이터를 새로 추가
+                          study_id:studyData.id,
+                          patient_id: studyData.patient_id,
+                          study_date: studyData.study_date,
+                          reason: pythonResult,
+                        }
+                      });
+                    console.log('error', studyData.id, pythonResult)
                     const files = fs.readdirSync(inputPath);
                     for (const file of files) {
                         const sourcePath = path.join(inputPath, file);
@@ -122,6 +133,17 @@ const cmoveProcess = async (waiting) => {
         await Study.update({ is_cmove: true }, { where: { id: waiting.study_id } });
     } else {
         // error Data에 삽입
+        await Study.update({ is_error: true }, { where: { id: waiting.study_id } });
+        const [errorRecord, created] = await Error.findOrCreate({
+            where: { study_instance_uid: waiting.study_instance_uid }, // study_id로 레코드를 찾거나 새로 생성
+            defaults: {  // 레코드가 없으면 이 데이터를 새로 추가
+              study_id:waiting.study_id,
+              patient_id: waiting.patient_id,
+              study_date: waiting.study_date,
+              reason: cmoveResult,
+            }
+          });
+        console.log(`error: id: ${waiting.study_id}  - ${cmoveResult}`);
         await Waiting.destroy({ where: { id: waiting.id } });
     }
     return;
@@ -142,7 +164,7 @@ const cfindProcess = async (studyDate) => {
             let doctorName = null;
             if (!study.PatientID) { continue; }
             if (study.OperatorsName) { doctorName = study.OperatorsName; }
-            const [studyData, _] = await Study.findOrCreate({
+            const [studyData, existed] = await Study.findOrCreate({
                 where: { study_instance_uid: study.StudyInstanceUID },
                 defaults: {
                     study_date: study.StudyDate,
@@ -155,7 +177,7 @@ const cfindProcess = async (studyDate) => {
                 }
             });
 
-            if (!studyData.is_cmove) {
+            if (!studyData.is_cmove && studyData.is_error === false) {
                 const [waitingData, _] = await Waiting.findOrCreate({
                     where: { study_id: studyData.id },
                     defaults: {

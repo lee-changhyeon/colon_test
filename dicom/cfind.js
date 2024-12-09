@@ -63,7 +63,7 @@ const dataToTag = (data) => {
         return cfindPatientTag;
     } else if (data.QueryRetrieveLevel === 'STUDY') {
         newTag.QueryRetrieveLevel.value = 'STUDY';
-        // newTag.ModalitiesInStudy.value = 'ES';
+        newTag.ModalitiesInStudy.value = 'ES';
         // newTag.Modality.value = 'ES';
 
         if (data.StudyInstanceUID) {

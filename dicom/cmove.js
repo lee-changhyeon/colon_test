@@ -18,7 +18,7 @@ const cmoveProtocol = (source, target, destination, tags, inputPath, verbose) =>
                     if (cmoveResult.status === 'success') {
                         if (fs.readdirSync(inputPath).length === 0) {
                             console.error('cmove error : Study input path does not exist.');
-                            resolve('Failed : Study input path does not exist.');
+                            resolve('Failed : Image not found in PACS.');
                         } else {
                             resolve('Success : The DICOM C-move message was executed.');
                         }
