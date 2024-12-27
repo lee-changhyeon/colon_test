@@ -1,58 +1,85 @@
 import os
 import cv2
 from datetime import datetime
+import shutil
+from collections import Counter  # Counter 추가
 
 def crop_moving_region_from_images(folder_path, output_folder):
     # 폴더 내 이미지 파일 목록 가져오기
-    image_files = sorted([f for f in os.listdir(folder_path) if f.endswith(('.jpg'))])
-    if not image_files:
-        print(f"{folder_path}에 jpg 이미지 파일이 없습니다.")
+    image_files = sorted([f for f in os.listdir(folder_path) if f.endswith('.jpg')])
+    if len(image_files) <= 1:
+        print(f"{folder_path}에 유효한 이미지가 부족합니다.")
         return
-
     # 출력 폴더 생성
     os.makedirs(output_folder, exist_ok=True)
 
-    # 첫 번째 이미지를 기준으로 불러오기
-    first_image = cv2.imread(os.path.join(folder_path, image_files[0]))
-    first_gray = cv2.cvtColor(first_image, cv2.COLOR_BGR2GRAY)
-    first_gray = cv2.GaussianBlur(first_gray, (5, 5), 0)
+    # 첫 번째 이미지를 제외하고 나머지 이미지들의 크기를 분석
+    image_shapes = []
+    valid_images = []
 
-    # 첫 번째 이미지에서 변화된 영역을 찾고 크롭
+    for image_file in image_files:  # 첫 번째 이미지는 제외
+        current_image_path = os.path.join(folder_path, image_file)
+        current_image = cv2.imread(current_image_path)
+        if current_image is None:
+            print(f"이미지 로드 실패: {current_image_path}")
+            continue
+
+        image_shapes.append(current_image.shape[:2])
+        valid_images.append((image_file, current_image))
+
+    # 가장 많이 등장한 크기를 기준으로 필터링
+    if not image_shapes:
+        print(f"{folder_path}에 유효한 이미지를 찾을 수 없습니다.")
+        return
+
+    most_common_shape, count = Counter(image_shapes).most_common(1)[0]
+    # print(f"{folder_path}: 가장 빈도가 높은 크기: {most_common_shape} (빈도: {count})")
+
+    selected_images = [(file, img) for file, img in valid_images if img.shape[:2] == most_common_shape]
+
+    crop_selected_images = []
+    if len(selected_images) < 11 :
+        crop_selected_images = selected_images
+    else :
+        crop_selected_images = selected_images[1:11]
+    gray_images = [cv2.GaussianBlur(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), (5, 5), 0) for _, img in crop_selected_images]
+
+    # 차이 계산
+    deltas = [
+        cv2.absdiff(gray_images[i], gray_images[i + 1])
+        for i in range(len(gray_images) - 1)
+    ]
+
+    # 차이 이진화 및 팽창
+    threshs = [
+        cv2.dilate(cv2.threshold(delta, 20, 255, cv2.THRESH_BINARY)[1], None, iterations=2)
+        for delta in deltas
+    ]
+
+    # 모든 컨투어에서 최대 영역을 탐색
     max_area = 0
-    x, y, w, h = 0, 0, first_image.shape[1], first_image.shape[0]  # 기본적으로 전체 이미지 크기 설정
+    x, y, w, h = 0, 0, most_common_shape[1], most_common_shape[0]  # 기본적으로 전체 크기를 포함
 
-    for i in range(1, len(image_files)):
-        current_image = cv2.imread(os.path.join(folder_path, image_files[i]))
-        current_gray = cv2.cvtColor(current_image, cv2.COLOR_BGR2GRAY)
-        current_gray = cv2.GaussianBlur(current_gray, (5, 5), 0)
-
-        # 두 이미지 간 차이 계산
-        frame_delta = cv2.absdiff(first_gray, current_gray)
-        thresh = cv2.threshold(frame_delta, 20, 255, cv2.THRESH_BINARY)[1]
-        thresh = cv2.dilate(thresh, None, iterations=2)
-
+    for thresh in threshs:
         contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        # 차이 영역 계산
         for contour in contours:
             area = cv2.contourArea(contour)
-            if max_area < area and area > 500:  # 면적이 500 이상일 경우만 처리
+            if area > 500 and area > max_area:  # 최소 면적 500 이상
                 max_area = area
-                (x, y, w, h) = cv2.boundingRect(contour)
+                x, y, w, h = cv2.boundingRect(contour)
 
-    # 크롭 영역이 결정된 후, 모든 이미지를 동일한 영역으로 크롭
-    for i in range(len(image_files)):
-        current_image = cv2.imread(os.path.join(folder_path, image_files[i]))
-        cropped_image = current_image[y:y + h, x:x + w]
-        output_path = os.path.join(output_folder, image_files[i])
+    # 크기가 같은 이미지들만 크롭 수행
+    for file, img in selected_images:
+        cropped_image = img[y:y + h, x:x + w]
+        output_path = os.path.join(output_folder, file)
         cv2.imwrite(output_path, cropped_image)
 
     # 출력 폴더 내 이미지 파일이 없으면 폴더 삭제
-    if not any(f.endswith(('.jpg')) for f in os.listdir(output_folder)):
+    if not any(f.endswith('.jpg') for f in os.listdir(output_folder)):
         print(f"{output_folder}에 이미지 파일이 없으므로 폴더를 삭제합니다.")
         shutil.rmtree(output_folder)
 
-
+        
 def process_folders(start_year, start_month, end_year, end_month, base_folder, output_base_folder):
     start_month = datetime(start_year, start_month, 1)
     end_month = datetime(end_year, end_month, 1)
@@ -74,6 +101,7 @@ def process_folders(start_year, start_month, end_year, end_month, base_folder, o
                 try:
                     for patient_id_index, patient_id in enumerate(os.listdir(date_folder)):
                         patient_id_folder = os.path.join(date_folder, patient_id)
+                        print(patient_id, end='\t')
                         output_folder = os.path.join(output_base_folder, year_str, month_str, date, patient_id)
 
                         crop_moving_region_from_images(patient_id_folder, output_folder)
@@ -97,4 +125,6 @@ def process_folders(start_year, start_month, end_year, end_month, base_folder, o
 # 사용 예시
 base_folder = "/data/colon_data"
 output_base_folder = "/data/colon_data_crop"
-process_folders(2024, 9, 2024, 9, base_folder, output_base_folder)
+# base_folder = "/data/test"
+# output_base_folder = "/data/test_crop"
+process_folders(2022, 1, 2022, 12, base_folder, output_base_folder)

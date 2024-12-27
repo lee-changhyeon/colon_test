@@ -2,17 +2,20 @@ const XLSX = require('xlsx');
 const path = require('path');
 const fs = require('fs');
 const dayjs = require('dayjs');
+const isBetween = require('dayjs/plugin/isBetween');
 const dotenv = require('dotenv');
+
 dotenv.config();
 const { Op } = require('sequelize');
+dayjs.extend(isBetween);
 
 // db
 const db = require('./db');
 const { Study } = require('./db');
 
-function inputExcel(excelFile, startDate, endDate) {
+function inputExcel(excelFile, startDate, endDate, doctorName) {
     // Excel 파일 경로 지정
-    const filePath = path.join(__dirname, excelFile); //'result2.xlsx'
+    const filePath = path.join(__dirname, 'excel_file', excelFile); //'result2.xlsx'
     const excel = XLSX.readFile(filePath);
     const sheetName = excel.SheetNames[0]; // 첫 번째 시트 선택
     const worksheet = excel.Sheets[sheetName];
@@ -29,15 +32,30 @@ function inputExcel(excelFile, startDate, endDate) {
         return sheet;
     });
 
-    // 필터링: 시작 날짜와 종료 날짜 사이의 데이터만 포함
-    excelData = excelData.filter(item => {
-        const recordDate = dayjs(item.date); // 'date' 필드를 dayjs 객체로 변환
-        const start = dayjs(startDate, 'YYYY-MM'); // 시작 날짜
-        const end = dayjs(endDate, 'YYYY-MM'); // 종료 날짜
+    if (startDate && endDate) {
+        // 시작 날짜와 종료 날짜 비교 후 정렬
+        let start = dayjs(startDate, 'YYYY-MM');
+        let end = dayjs(endDate, 'YYYY-MM');
+    
+        if (start.isAfter(end)) {
+            // 날짜가 뒤집혀 있을 경우 교환
+            [start, end] = [end, start];
+        }
+    
+        // 시작 날짜의 첫날, 종료 날짜의 마지막 날로 설정
+        start = start.startOf('month');
+        end = end.endOf('month');
+    
+        // 필터링: 범위 내의 데이터만 포함
+        excelData = excelData.filter(item => {
+            const recordDate = dayjs(item.date); // 'date' 필드를 dayjs 객체로 변환
+            return recordDate.isBetween(start, end, null, '[]'); // 범위 내 날짜 포함
+        });
+    }
 
-        return recordDate.isBetween(end, start, null, '[]'); // 역순 범위도 포함
-    });
-
+    if(doctorName){
+        excelData = excelData.filter(item => item['판독자'] === doctorName);
+    }
     return excelData;
 }
 
@@ -89,11 +107,11 @@ function saveToExcel(data, fileName) {
     XLSX.utils.book_append_sheet(wb, ws, 'Users');
 
     // 엑셀 파일 다운로드
-    XLSX.writeFile(wb, `${fileName}.xlsx`);
+    XLSX.writeFile(wb, `excel_file/${fileName}.xlsx`);
 }
 
 
-const excelSplit = async (imagePath, excelFileName, startYear, endYear) => {
+const excelSplit = async (imagePath, excelFileName, startDate, endDate, doctorName) => {
     try {
         // mysql db connection
         await new Promise((resolve, reject) => {
@@ -112,7 +130,7 @@ const excelSplit = async (imagePath, excelFileName, startYear, endYear) => {
         let existImage = [];
         let remainingData = [];
 
-        const excelData = inputExcel(excelFileName, startYear, endYear);
+        const excelData = inputExcel(excelFileName, startDate, endDate, doctorName);
         
         for (const sheet of excelData) {
             const date = sheet.date;
@@ -147,16 +165,29 @@ const excelSplit = async (imagePath, excelFileName, startYear, endYear) => {
             return rest; // 'date' 속성이 제거된 새로운 객체 반환
         });
 
-        saveToExcel(remainingData, `[${endYear}-${startYear}][without_img][merge][rm_EGD]_판독+조직검사_결과`);
-        saveToExcel(existImage, `[${endYear}-${startYear}][with_img][merge][rm_EGD]_판독+조직검사_결과`);
+        let withImageExcelName = '[with_img][merge][rm_EGD]_판독+조직검사_결과';
+        // let withoutImageExcelName = '[without_img][merge][rm_EGD]_판독+조직검사_결과';
+        if(startDate && endDate){
+            withImageExcelName = `[${startDate}-${endDate}]`+ withImageExcelName;
+            // withoutImageExcelName = `[${startDate}-${endDate}]`+ withoutImageExcelName;
+        }
+
+        if(doctorName){
+            withImageExcelName = `[${doctorName}]`+ withImageExcelName;
+            // withoutImageExcelName = `[${doctorName}]`+ withoutImageExcelName;
+        }
+
+        // saveToExcel(remainingData, withoutImageExcelName);
+        saveToExcel(existImage, withImageExcelName);
     } catch (error) {
         console.error(error);
     }
 }
 
-const imagePath = '/data_hard/colon_crop';
+const imagePath = '/data/colon_data_crop';
 const excelFileName = '[merge][rm_EGD]_판독+조직검사_결과.xlsx';
-const startDate = '2024-09';
-const endDate = '2024-01';
+const startDate = '2023-12';
+const endDate = '2023-01';
+const doctorName = null;//'이동현';
 
-excelSplit(imagePath, excelFileName, startDate, endDate);
+excelSplit(imagePath, excelFileName, startDate, endDate, doctorName);
